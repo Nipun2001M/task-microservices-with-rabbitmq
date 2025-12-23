@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongodb/mongodb-community-server:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongo
+    env_file:
+      - ./user-service/.env  
+  
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  task-service:
+    build: ./task-service
+    container_name: task-service
+    ports:
+      - "8001:8001"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+    env_file:
+      - ./task-service/.env  
+
+volumes:
+  mongo_data:
